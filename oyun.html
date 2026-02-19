@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧩 KELİME MACERASI</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#0f172a;
+    color:white;
+    text-align:center;
+    margin:0;
+    padding:20px;
+}
+
+.hidden{display:none;}
+
+button{
+    padding:12px 20px;
+    font-size:16px;
+    margin:10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+.primary{background:#3498db;color:white;}
+.success{background:#2ecc71;color:white;}
+.warning{background:#f39c12;color:white;}
+
+.board{margin-top:15px;}
+.row{display:flex;justify-content:center;margin:5px;}
+
+.cell{
+    width:45px;
+    height:45px;
+    border:2px solid #555;
+    margin:3px;
+    font-size:22px;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-transform:uppercase;
+    background:#222;
+}
+
+.correct{background:#27ae60;}
+.present{background:#f1c40f;color:black;}
+.wrong{background:#444;}
+.reveal{background:#c0392b;}
+
+input{
+    padding:10px;
+    font-size:16px;
+    text-transform:lowercase;
+}
+
+#hintBox{
+    font-size:22px;
+    font-weight:bold;
+    margin-bottom:15px;
+    color:#f1c40f;
+    min-height:30px;
+}
+
+#message{
+    margin-top:10px;
+    font-size:14px;
+    color:#ff7675;
+    min-height:20px;
+}
+
+.fade{
+    animation:fadeIn 1.5s forwards;
+}
+@keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+}
+
+.heart{
+    position:fixed;
+    font-size:24px;
+    animation:float 4s infinite ease-in;
+}
+@keyframes float{
+    0%{transform:translateY(0) scale(1);opacity:1;}
+    100%{transform:translateY(-800px) scale(1.5);opacity:0;}
+}
+</style>
+</head>
+
+<body>
+
+<div id="startScreen">
+<h1>KELİME MACERASI</h1>
+<p>Sinema</p>
+<p>Aile</p>
+<p>Spor</p>
+<p>Bitki</p>
+<p>Eğitim</p>
+<button class="primary" onclick="startGame()">Oyuna Başla</button>
+</div>
+
+<div id="gameScreen" class="hidden">
+<h2 id="categoryTitle"></h2>
+<div id="hintBox"></div>
+<div id="board" class="board"></div>
+
+<input id="guessInput">
+<br>
+<button class="success" onclick="submitGuess()">Tahmin Et</button>
+<button class="warning" onclick="giveLetter()">Harf Al</button>
+
+<button class="primary hidden" id="nextWordBtn" onclick="nextWord()">Sıradaki Kelime</button>
+<button class="primary hidden" id="nextCategoryBtn" onclick="nextCategory()">Yeni Kategoriye Geç</button>
+
+<p id="message"></p>
+</div>
+
+<div id="surpriseScreen" class="hidden">
+<h1 class="fade">👶 Babaanne Oluyorsun 👶</h1>
+<h3 class="fade">✨ Minik bebeğimiz yolda... ✨</h3>
+</div>
+
+<script>
+
+const categories = [
+{
+name:"Sinema",
+words:["film","gişe","ışık","aktör","bilet","perde","oyuncu","reklam","koltuk"],
+hint:"Olur olmadık yerde 'kestik' diyen kişi",
+finalWord:"yönetmen"
+},
+{
+name:"Aile",
+words:["hala","aile","dede","kuzen","çocuk","yeğen","kardeş","akraba","enişte"],
+hint:"Oğlunun çocuğu olan kayınvalide",
+finalWord:"babaanne"
+}
+];
+
+let currentCategory=0;
+let wordIndex=0;
+let currentWord="";
+let currentRow=0;
+let maxRow=6;
+let revealed=false;
+let isFinal=false;
+let knownLetters=[];
+
+function startGame(){
+document.getElementById("startScreen").classList.add("hidden");
+document.getElementById("gameScreen").classList.remove("hidden");
+loadCategory();
+}
+
+function loadCategory(){
+let cat=categories[currentCategory];
+document.getElementById("categoryTitle").innerText="Kategori: "+cat.name;
+wordIndex=0;
+isFinal=false;
+loadWord();
+}
+
+function loadWord(){
+let cat=categories[currentCategory];
+
+if(wordIndex < cat.words.length){
+currentWord=cat.words[wordIndex];
+isFinal=false;
+document.getElementById("hintBox").innerText="";
+}else{
+currentWord=cat.finalWord;
+isFinal=true;
+document.getElementById("hintBox").innerText="💡 "+cat.hint;
+}
+
+currentRow=0;
+revealed=false;
+knownLetters=new Array(currentWord.length).fill("");
+document.getElementById("message").innerText="";
+document.getElementById("nextWordBtn").classList.add("hidden");
+document.getElementById("nextCategoryBtn").classList.add("hidden");
+createBoard();
+}
+
+function createBoard(){
+const board=document.getElementById("board");
+board.innerHTML="";
+for(let i=0;i<maxRow;i++){
+let row=document.createElement("div");
+row.className="row";
+for(let j=0;j<currentWord.length;j++){
+let cell=document.createElement("div");
+cell.className="cell";
+if(j===0){
+cell.innerText=currentWord[0];
+}
+row.appendChild(cell);
+}
+board.appendChild(row);
+}
+}
+
+function submitGuess(){
+if(revealed) return;
+
+let guess=document.getElementById("guessInput").value.toLowerCase();
+if(guess.length!==currentWord.length){
+document.getElementById("message").innerText="Kelime uzunluğu yanlış!";
+return;
+}
+
+let rows=document.getElementsByClassName("row")[currentRow];
+let wordArr=currentWord.split("");
+let guessArr=guess.split("");
+let usedPositions=[];
+
+for(let i=0;i<guessArr.length;i++){
+let cell=rows.children[i];
+cell.innerText=guessArr[i];
+
+if(guessArr[i]===wordArr[i]){
+cell.classList.add("correct");
+knownLetters[i]=guessArr[i];
+usedPositions.push(i);
+}else{
+let foundIndex = wordArr.findIndex((letter,index)=>letter===guessArr[i] && !usedPositions.includes(index));
+if(foundIndex!==-1){
+cell.classList.add("present");
+usedPositions.push(foundIndex);
+}else{
+cell.classList.add("wrong");
+}
+}
+}
+
+if(guess===currentWord){
+revealed=true;
+if(isFinal){
+document.getElementById("nextCategoryBtn").classList.remove("hidden");
+}else{
+document.getElementById("nextWordBtn").classList.remove("hidden");
+}
+return;
+}
+
+currentRow++;
+
+if(currentRow===maxRow){
+revealAnswer();
+}else{
+prepareNextRow();
+}
+}
+
+function prepareNextRow(){
+let rows=document.getElementsByClassName("row")[currentRow];
+for(let i=0;i<knownLetters.length;i++){
+if(i===0){
+rows.children[i].innerText=currentWord[0];
+}else if(knownLetters[i]!==""){
+rows.children[i].innerText=knownLetters[i];
+}
+}
+}
+
+function revealAnswer(){
+let board=document.getElementById("board");
+let row=document.createElement("div");
+row.className="row";
+for(let i=0;i<currentWord.length;i++){
+let cell=document.createElement("div");
+cell.className="cell reveal";
+cell.innerText=currentWord[i];
+row.appendChild(cell);
+}
+board.appendChild(row);
+revealed=true;
+
+if(isFinal){
+document.getElementById("nextCategoryBtn").classList.remove("hidden");
+}else{
+document.getElementById("nextWordBtn").classList.remove("hidden");
+}
+}
+
+function nextWord(){
+wordIndex++;
+loadWord();
+}
+
+function nextCategory(){
+if(currentCategory===0){
+currentCategory++;
+loadCategory();
+}else{
+showSurprise();
+}
+}
+
+function giveLetter(){
+if(revealed) return;
+let rows=document.getElementsByClassName("row")[currentRow];
+for(let i=1;i<currentWord.length;i++){
+if(rows.children[i].innerText===""){
+rows.children[i].innerText=currentWord[i];
+knownLetters[i]=currentWord[i];
+break;
+}
+}
+}
+
+function showSurprise(){
+document.getElementById("gameScreen").classList.add("hidden");
+document.getElementById("surpriseScreen").classList.remove("hidden");
+createHearts();
+}
+
+function createHearts(){
+setInterval(()=>{
+let heart=document.createElement("div");
+heart.innerText="💛";
+heart.className="heart";
+heart.style.left=Math.random()*100+"vw";
+heart.style.top="100vh";
+document.body.appendChild(heart);
+setTimeout(()=>heart.remove(),4000);
+},500);
+}
+
+</script>
+</body>
+</html>
